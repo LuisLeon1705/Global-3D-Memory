@@ -1,0 +1,19 @@
+[package]
+name = "global-3d-memory"
+version = "0.1.0"
+edition = "2021"
+description = "Memoria global 3D (CTHG) para un agente de IA: la leen hooks sin modelo y la escribe un subagente solo cuando el agente lo pide"
+
+[[bin]]
+name = "cgm"
+path = "src/main.rs"
+
+[dependencies]
+# The same engine as 3D-Memory, not a copy: one CTHG, several memories.
+cthg-core = { path = "../3D-Memory/crates/cthg-core" }
+
+# Its own workspace: it lives next to 3D-Memory, not inside it.
+[workspace]
+
+[profile.release]
+opt-level = 3
