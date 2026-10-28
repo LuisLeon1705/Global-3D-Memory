@@ -99,7 +99,10 @@ pub fn session_start(m: &Memory, session: &Session, here: &str, now: f64) -> Inj
         let last = m
             .nodes
             .iter()
-            .filter(|n| n.kind == NodeKind::Session && scores[n.id as usize].visible && overlaps(&n.path, here))
+            .filter(|n| {
+                let s = &scores[n.id as usize];
+                n.kind == NodeKind::Session && s.visible && !s.superseded && overlaps(&n.path, here)
+            })
             .max_by(|a, b| a.y.partial_cmp(&b.y).unwrap_or(std::cmp::Ordering::Equal));
         if let Some(n) = last {
             out.push(format!("\n## La última vez aquí\n#{} {}", n.id, text::clip(&n.text, 300)));
@@ -187,5 +190,21 @@ mod tests {
         assert!(!inj.ids.contains(&old), "the old version stays out: {}", inj.text);
         let start = session_start(&m, &s, "Projects/Memoria", 1e9);
         assert!(!start.ids.contains(&old), "at session start too: {}", start.text);
+    }
+
+    #[test]
+    fn a_replaced_session_summary_is_not_the_last_time_anywhere() {
+        // A summary anchored too high ("Projects") was replaced by one in its project: in a
+        // sibling folder the old one must not come back as «la última vez aquí».
+        let mut m = Memory::default();
+        let old = learn_at(&mut m, "Estado del proyecto AE: fases cero a cuatro hechas", "Projects", NodeKind::Session, false);
+        let new = learn_at(&mut m, "Estado de AE: fases cero a cuatro hechas y elipsis", "Projects/AE", NodeKind::Session, false);
+        learn::supersede(&mut m, new, old).unwrap();
+        let s = Session { id: "s4".into(), ..Default::default() };
+        let elsewhere = session_start(&m, &s, "Projects/Otro", 1e9);
+        assert!(!elsewhere.ids.contains(&old), "the replaced summary leaks: {}", elsewhere.text);
+        let here = session_start(&m, &s, "Projects/AE", 1e9);
+        assert!(here.ids.contains(&new), "{}", here.text);
+        assert!(!here.ids.contains(&old), "{}", here.text);
     }
 }
